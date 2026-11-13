@@ -33,7 +33,7 @@ inv_logit <- function(x) 1 / (1 + exp(-x))
 
 # One herd-level variable U drives BOTH the exposure and the outcome, and is
 # never observed. This is the realistic case: unrecorded vector pressure at the
-# homestead pushes a herd towards wetland grazing and raises its infection risk
+# boma pushes a herd towards wetland grazing and raises its infection risk
 # independently.
 #
 # TRUE causal log-odds of the exposure = 0.70 throughout.
@@ -135,7 +135,7 @@ print(round(as.data.frame(t(sapply(c(0.25, 1.0, 2.0, 3.0), noncollapsibility))),
 #
 #   MARGINAL (what glm reports, and what a control programme needs)
 #     "If every herd in the region changed, how much would seroprevalence
-#      fall?" This is the counterfactual quantity in section 13 of the
+#      fall?" This is the counterfactual quantity in section 12 of the
 #      tutorial.
 #
 # The odds ratio is non-collapsible, so these two differ even with no
@@ -144,7 +144,7 @@ print(round(as.data.frame(t(sapply(c(0.25, 1.0, 2.0, 3.0), noncollapsibility))),
 #
 # HOW TO GET THE MARGINAL ANSWER FROM A RANDOM-EFFECTS MODEL
 # Predict probabilities for every animal, then average them. That is exactly
-# what pop_mean() does in section 13, and it marginalises correctly as long as
+# what pop_mean() does in section 12, and it marginalises correctly as long as
 # you let the random effects vary rather than fixing them at zero:
 #
 #   posterior_epred(fit, newdata = d)                     # averages over the
@@ -162,13 +162,18 @@ print(round(as.data.frame(t(sapply(c(0.25, 1.0, 2.0, 3.0), noncollapsibility))),
 
 # ---- WHAT THIS MEANS FOR THE RVF TUTORIAL -----------------------------------
 #
-# VILLAGE, 5 levels. Keep it a fixed effect, as sections 6 to 14 do.
-#   Five clusters is far too few to estimate a variance from. Published
-#   guidance asks for 30 to 50 groups before a random intercept is dependable,
-#   and with five the variance and its standard error are unreliable. Village
-#   is also a confounder you want fully adjusted, not partially pooled.
+# VILLAGE, 38 levels. Either works; the tutorial keeps it a fixed effect.
+#   38 clusters clears the 30-to-50 groups that published guidance asks for
+#   before a random intercept is dependable, so a village variance is
+#   estimable here and the fixed-effect choice is no longer forced. It is
+#   still the safer default for a confounder, because 37 dummy variables
+#   remove every village-level difference without assuming the village effects
+#   are unrelated to grazing, and a random intercept partially pools them
+#   towards the mean instead. Switch to (1 | village) when you want the
+#   variance itself, or predictions for villages you did not sample, and pair
+#   it with the village means of your exposures as below.
 #
-# HERD, around 50 levels. This is where a random effect earns its place.
+# HERD, 200 levels. This is where a random effect earns its place.
 #   Add (1 | herd_id) for the dependence between animals in a herd, and add
 #   the herd mean of any exposure that varies within herds:
 #
@@ -182,14 +187,14 @@ print(round(as.data.frame(t(sapply(c(0.25, 1.0, 2.0, 3.0), noncollapsibility))),
 # WHAT CHANGES, AND WHAT DOES NOT
 #   The adjustment sets do not change. The DAG decides those, and nothing here
 #   touches the DAG.
-#   The standard errors change, and usually widen, because 900 animals in 50
-#   herds carry less information than 900 independent animals.
+#   The standard errors change, and usually widen, because 2220 animals in 200
+#   herds carry less information than 2220 independent animals.
 #   The point estimate changes only if herd-level confounding was present.
 #
 # HOW THIS RELATES TO THE TUTORIAL DATA
 #   rvf_cattle_serology.csv has real herd clustering, with a herd standard
-#   deviation of 0.63 on the log-odds scale after village, an intraclass
-#   correlation of 0.11. What it does not have is strong herd-level
+#   deviation of 0.76 on the log-odds scale after village, an intraclass
+#   correlation of 0.15. What it does not have is strong herd-level
 #   CONFOUNDING, so there the random intercept, the Mundlak model and herd
 #   fixed effects all land close to the village-only answer. The parameters in
 #   this script are turned up so the difference is visible. Use this script to

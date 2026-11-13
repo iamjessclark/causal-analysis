@@ -385,8 +385,18 @@ simulation, sensitivity analysis.</p>
 <td>Generates the dataset. Run once. Not part of the tutorial.</td>
 </tr>
 <tr class="even">
+<td><code>rvf_cattle_serology.csv</code></td>
+<td>The analysis dataset, written by <code>01</code> - can just load
+this and not run 1</td>
+</tr>
+<tr class="odd">
 <td><code>02_causal_analysis_tutorial.R</code></td>
-<td>The tutorial. Read and run it section by section.</td>
+<td>The tutorial code. Read and run it section by section.</td>
+</tr>
+<tr class="even">
+<td><code>TUTORIAL.md</code></td>
+<td>The written tutorial: the explanation for each section, the function
+reference and how to read each output.</td>
 </tr>
 <tr class="odd">
 <td><code>03_random_effects_demo.R</code></td>
@@ -394,18 +404,14 @@ simulation, sensitivity analysis.</p>
 <code>lme4</code>.</td>
 </tr>
 <tr class="even">
-<td><code>rvf_cattle_serology.csv</code></td>
-<td>The analysis dataset, written by <code>01</code>.</td>
-</tr>
-<tr class="odd">
 <td><code>simulation_truth.csv</code></td>
 <td>The true coefficients, so you can check the answers.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>figures/</code></td>
 <td>Plots written by the tutorial.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>models/</code></td>
 <td>Cached Bayesian fits, so re-runs are fast.</td>
 </tr>
@@ -414,24 +420,25 @@ simulation, sensitivity analysis.</p>
 </div>
 <div id="running-it" class="section level2">
 <h2>Running it</h2>
-<pre class="r"><code>install.packages(c(&quot;dagitty&quot;, &quot;ggdag&quot;, &quot;ggplot2&quot;, &quot;dplyr&quot;, &quot;tidyr&quot;,
-                   &quot;fastDummies&quot;, &quot;CCP&quot;, &quot;brms&quot;, &quot;patchwork&quot;))</code></pre>
+<pre class="r"><code>install.packages(c(&quot;dagitty&quot;, &quot;ggdag&quot;, &quot;tidyverse&quot;, &quot;brms&quot;,
+                   &quot;fastDummies&quot;, &quot;CCP&quot;))</code></pre>
 <pre class="r"><code>source(&quot;01_simulate_data.R&quot;)</code></pre>
 <p>Then open <code>02_causal_analysis_tutorial.R</code> and work through
-it. Sections 1 to 11 use <code>glm()</code> and run in seconds. Sections
-12 to 14 use <code>brms</code>, which compiles Stan code on first use
-and takes a few minutes. After that the <code>file=</code> cache in
+it. Every model is fitted in <code>brms</code>, as in the source paper,
+so the first run compiles around a dozen Stan programs and takes 10 to
+20 minutes. After that the <code>file=</code> cache in
 <code>models/</code> makes re-runs instant. Delete <code>models/</code>
 if you change the data or a model formula.</p>
 <p><code>brms</code> needs a working C++ toolchain. On macOS install
 Xcode command line tools with <code>xcode-select --install</code>; on
-Windows install Rtools. If the install gives you trouble, sections 1 to
-11 stand on their own and cover the whole causal logic.</p>
+Windows install Rtools.</p>
 </div>
 <div id="what-the-tutorial-covers" class="section level2">
 <h2>What the tutorial covers</h2>
 <ol style="list-style-type: decimal">
 <li>Reading the data and setting reference levels</li>
+<li>How every model is fitted: <code>brms</code>, priors, and the
+helpers used throughout</li>
 <li>Why the crude comparison is not a causal estimate</li>
 <li>Writing a DAG in <code>dagitty</code></li>
 <li>Testing the DAG against the data with implied conditional
@@ -439,17 +446,14 @@ independencies</li>
 <li>Paths, confounders, mediators and colliders</li>
 <li>Letting the DAG choose the covariates, with
 <code>adjustmentSets()</code></li>
-<li>Estimating the total effect</li>
+<li>Estimating the total effect, with convergence checks and posterior
+probabilities</li>
 <li>Estimating the direct effect, and reading mediation from the
 gap</li>
 <li>Four ways to get the answer wrong, scored against the simulated
 truth</li>
 <li>A continuous exposure, and converting a per-unit effect into a
 useful contrast</li>
-<li>A second outcome, with a note on selection bias in “among the
-infected” models</li>
-<li>The Bayesian version: priors, convergence, posterior
-probabilities</li>
 <li>Counterfactual interventions, population versus subgroup, and
 effects by subgroup</li>
 <li>Sensitivity analysis: E-values, mediator-versus-confounder
@@ -459,10 +463,12 @@ structure, measurement error</li>
 </div>
 <div id="the-simulated-data" class="section level2">
 <h2>The simulated data</h2>
-<p>935 cattle from 52 herds across 5 villages, one blood sample and one
-management questionnaire each. Overall seroprevalence is 36%, matching
-the source paper. Management is decided mostly at herd level, so animals
-in the same herd resemble each other.</p>
+<p>2220 cattle from 200 herds across 38 villages, one blood sample and
+one management questionnaire each, matching the design of the CEPI
+study. Overall seroprevalence is 36%, as in the source paper, with a
+village median of 33% and a range from 2% to 81%. Management is decided
+mostly at herd level, so animals in the same herd resemble each
+other.</p>
 <p>Six management exposures, each chosen because the RVF literature
 reports it as a risk factor:</p>
 <table>
@@ -519,43 +525,46 @@ in Madagascar</td>
 </tbody>
 </table>
 <p>Plus <code>hours_at_water</code>, a continuous duration of
-surface-water contact that acts as the mediator, <code>vaccinated</code>
-as the control-programme variable, and <code>abortion_reported</code>,
-which is caused by infection and is in the data specifically so the
-tutorial can show what happens when you adjust for a collider.</p>
+surface-water contact that acts as the mediator, and
+<code>abortion_reported</code>, which is caused by infection and is in
+the data specifically so the tutorial can show what happens when you
+adjust for a collider.</p>
 <p>The simulation also contains two variables that are
 <strong>not</strong> written to the CSV. Distance from the homestead to
 standing water causes both grazing system and infection, so it is an
-unmeasured confounder, and section 14 uses it to show why the recovered
-direct effect sits below the simulated truth and how an E-value
-quantifies the gap. A residual herd risk raises or lowers every animal’s
-risk in a herd without touching management, so it produces clustering
-without confounding.</p>
+unmeasured confounder, and section 13 uses it to show why the recovered
+direct effect misses the simulated truth and how an E-value quantifies
+the gap. A residual herd risk raises or lowers every animal’s risk in a
+herd without touching management, so it produces clustering without
+confounding.</p>
 </div>
-<div id="two-things-the-simulation-simplifies" class="section level2">
-<h2>Two things the simulation simplifies</h2>
-<p><strong>Vaccination and serology.</strong> The data treat
-<code>seropositive</code> as detecting natural infection only, and
-vaccination as reducing infection. In a real serosurvey, vaccine-induced
-antibodies are hard to distinguish from infection-induced ones on most
-commercial ELISAs. That is a measurement problem, not a causal-structure
-problem, and it would need its own handling in a real analysis.</p>
-<p><strong>Clustering.</strong> Animals cluster in herds, with a herd
-standard deviation of 0.69 on the log-odds scale after village is
-accounted for, which is an intraclass correlation of 0.13. The tutorial
-treats village as a fixed effect and leaves herd alone, which is what
-the source paper does.</p>
+<div id="what-the-simulation-simplifies" class="section level2">
+<h2>What the simulation simplifies</h2>
+<p><strong>Clustering.</strong> Animals cluster at two levels. After
+village is accounted for, the herd standard deviation is 0.58 on the
+log-odds scale, an intraclass correlation of 0.09; fit village and herd
+together as nested random intercepts and the village standard deviation
+is 1.16 against 0.72 for herd within village, so village is the larger
+of the two. The tutorial treats village as a fixed effect and leaves
+herd alone, which is what the source paper does.</p>
 <p>Because adding <code>(1 | herd_id)</code> is the obvious next
 thought, and because it does not do what most people expect,
 <code>03_random_effects_demo.R</code> works the question through on data
 where the right answer is known. The summary: a random intercept does
 <strong>not</strong> control cluster-level confounding, and in that
 script it leaves a log-odds estimate at 1.06 against a truth of 0.70,
-where fixed effects give 0.78 and the Mundlak specification gives 0.73.
-Village stays a fixed effect here because five clusters is too few to
-estimate a variance from. Clustering changes the standard errors and,
-where cluster-level confounding exists, the point estimate; it never
-changes the adjustment sets, because those come from the DAG.</p>
+where fixed effects give 0.78 and the Mundlak specification gives
+0.73.</p>
+<p>With 38 villages there are enough clusters to estimate a village
+variance, so village could be a random effect here. It stays a fixed
+effect for a different reason: 37 dummy variables remove every
+village-level confounder without assuming anything about how the village
+effects relate to grazing, and a random intercept does not. The cost is
+37 coefficients you have to scroll past in <code>summary()</code> and no
+estimate of the village variance itself. Clustering changes the standard
+errors and, where cluster-level confounding exists, the point estimate.
+It never changes the adjustment sets, because those come from the
+DAG.</p>
 </div>
 <div id="further-reading" class="section level2">
 <h2>Further reading</h2>

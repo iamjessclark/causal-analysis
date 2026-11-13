@@ -1,9 +1,7 @@
 "term","true_log_odds"
-"intercept",-2.95
-"village_B",0.95
-"village_C",0.4
-"village_D",0.65
-"village_E",0.2
+"intercept",-3.2
+"village_wetland_slope",0.9
+"village_residual_sd",0.3
 "age_juvenile",0.7
 "age_adult",1.4
 "sex_male",0.15
@@ -15,9 +13,6 @@
 "water_river_stream",0.85
 "hours_at_water",0.22
 "wildlife_contact",0.35
-"night_housing",-0.45
-"vector_control_irregular",-0.25
-"vector_control_routine",-0.55
 "introduced_recently",0.45
 "unmeasured_water_proximity",0.35
 "unmeasured_herd_risk_sd",0.7
