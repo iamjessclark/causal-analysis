@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 Rplots.pdf
+models/
+README.html
+TUTORIAL.html

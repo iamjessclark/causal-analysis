@@ -12,6 +12,9 @@ infection, this tutorial models cattle grazing and watering practice and RVFV
 seropositivity. The method is identical: DAG, adjustment sets, total and direct
 effects, Bayesian estimation, counterfactual simulation, sensitivity analysis.
 
+**Start here: [TUTORIAL.md](TUTORIAL.md)**, the written tutorial. Run
+`02_causal_analysis_tutorial.R` alongside it, one section at a time.
+
 ## Files
 
 | File | What it is |
