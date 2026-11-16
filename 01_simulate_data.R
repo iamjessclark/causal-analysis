@@ -214,14 +214,6 @@ infection_logodds <- truth["intercept"] +
 
 seropositive <- rbinom(n, 1, inv_logit(infection_logodds))
 
-# ---- A descendant of infection: reported abortion / stillbirth ---------------
-# Recorded for this animal, and caused by its own infection, so it is a
-# consequence of the outcome and must never be used as a covariate.
-
-abortion_reported <- rbinom(n, 1, inv_logit(-2.20 + 1.80 * seropositive +
-                                              1.00 * g_wetland +
-                                              0.60 * g_communal))
-
 # ---- Write out ---------------------------------------------------------------
 
 cattle <- data.frame(
@@ -230,7 +222,7 @@ cattle <- data.frame(
   age_class, age_years, sex,
   grazing, water_source, hours_at_water,
   wildlife_contact, introduced_recently,
-  seropositive, abortion_reported
+  seropositive
 )
 
 write.csv(cattle, "rvf_cattle_serology.csv", row.names = FALSE)

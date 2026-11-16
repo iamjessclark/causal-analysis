@@ -20,7 +20,7 @@ text.
 - [3. The crude model](#3-the-crude-model-a-grazing-only-regression)
 - [4. Draw the DAG](#4-draw-the-dag)
 - [5. Test the DAG against the data](#5-test-the-dag-against-the-data)
-- [6. Paths, confounders, mediators and colliders](#6-paths-confounders-mediators-and-colliders)
+- [6. Paths](#6-paths)
 - [7. Let the DAG choose your covariates](#7-let-the-dag-choose-your-covariates)
 - [8. Estimate the total effect](#8-estimate-the-total-effect)
 - [9. Estimate the direct effect, and read the mediation](#9-estimate-the-direct-effect-and-read-the-mediation)
@@ -170,7 +170,6 @@ recorded from its owner's questionnaire.
 | `hours_at_water` | Hours per day in or at the edge of surface water |
 | `wildlife_contact` | Shares grazing or watering points with wildlife |
 | `introduced_recently` | Bought into the herd in the last 12 months |
-| `abortion_reported` | Abortion or stillbirth recorded for this animal |
 | `village`, `age_class`, `sex`, `herd_size`, `herd_id` | Design and demography |
 
 Every management variable varies within a herd, because an owner tethers the
@@ -201,12 +200,6 @@ values are 0/1 for example, that none of your village have N = 0 etc.
 This script prints overall seroprevalence, the spread between villages, 
 seroprevalence by grazing system, seroprevalence by age class, and a 
 cross-tabulation of grazing against water source.
-
-`tapply(cattle$seropositive, cattle$village, mean)` splits the 0/1 outcome by
-village and takes the mean of each group, which for a 0/1 variable is the
-proportion positive. 38 villages is too many to read one by one, so
-`summary()` reduces them to quantiles and `sort()[c(1, 38)]` picks out the
-lowest and the highest.
 
 **How to read it.** Seroprevalence is about 36% overall, with a village median
 of 26% and a range from 2% to 79%, so village is a large source of variation
@@ -284,16 +277,16 @@ effect of grazing.
 ## 4. Draw the DAG
 
 A DAG (directed acyclic graph) is a drawing of what you believe causes what.
-Three rules:
+Four rules:
 
 1. One node per variable.
 2. One arrow per direct cause, pointing from cause to effect.
 3. No loops. If A causes B, nothing downstream of B can cause A.
+4. The arrows come from subject knowledge, published studies and expert
+   opinion, never from the data.
 
-The arrows come from subject knowledge, published studies and expert opinion,
-never from the data. Missing an arrow that really exists is an assumption that
-can bias your estimate, so it is safer to include a plausible arrow than to
-leave it out.
+Missing an arrow that really exists is an assumption that can bias your
+estimate, so it is safer to include a plausible arrow than to leave it out.
 
 The arrows in this DAG are drawn from the RVF literature: wetland and riverine
 grazing and shared watering points raise exposure to *Aedes* and *Culex*
@@ -308,6 +301,21 @@ from `village` and none from `age_class` or `sex`. A DAG for a real dataset
 would be expected to have both of those arrows, because bought-in animals are
 mostly adults rather than calves born in the herd, and because owners buy
 females and males for different purposes.
+
+### Start large, then trim
+
+The first version of a DAG can be large. Draw every variable you can think of
+that might lie on the causal path or influence the relationship, whether or not
+it was measured. The DAG is then trimmed to what the question needs, in two
+cases.
+
+1. A variable with an arrow into the outcome and no connection to the exposure
+   can be removed, because the DAG describes the causal relationship you are
+   estimating and nothing else. Leaving it in the model can make the estimate
+   more precise, but removing it does not bias the estimate.
+2. In a chain, an outer node that points only into the middle node and nowhere
+   else can be removed if you are not interested in it, because all the
+   variation it adds to the outcome passes through the middle node.
 
 ### The syntax
 
@@ -334,6 +342,11 @@ The whole DAG is one character string, wrapped in `dag { ... }` and passed to
 
 Names must match the column names in your data exactly, otherwise the DAG
 cannot be tested against the data later.
+
+The online version of dagitty at <https://www.dagitty.net> lets you move nodes
+and add or change arrows with the mouse, so you can see the structure as you
+build it. The code it produces can be copied and pasted into `dagitty('...')`
+in R.
 
 ### Deciding the role of a node
 
@@ -374,11 +387,20 @@ measure, so leave it out when you want the total effect.
 **confounder**, because it has an arrow into both `grazing` and `seropositive`.
 It creates association without causation, so conditioning on it is required.
 
-**Collider.** `grazing -> abortion_reported <- seropositive`. Arrows from
-`grazing` and from `seropositive` both point into `abortion_reported`, which
-makes it a **collider**. These variables are already independent through this
-path, and conditioning on the collider *creates* a false association. Never
-condition on it.
+**Collider.** `grazing -> water_source <- village`. Arrows from `grazing` and
+from `village` both point into `water_source`, which makes it a **collider** on
+this path. The two parents are not linked through a collider until you
+condition on it, and conditioning on a collider *opens* the path between its
+parents, which can create a false association. `water_source` is a mediator on
+one path and a collider on another, because it sits on the chain
+`grazing -> water_source -> seropositive` and is also where the arrows from
+`grazing` and `village` meet. This happens in real data, so a variable's role
+has to be read path by path. The direct-effect model conditions on
+`water_source` to remove the mediated route, which also opens
+`grazing -> water_source <- village`. That is harmless here because `village`
+is in the model and blocks the opened path. It would not be harmless if the
+other parent were unmeasured, which is the situation section 13 draws with a
+hidden variable.
 
 The same variable can change role when you change the exposure: `water_source`
 is a mediator of the grazing effect and a confounder of the `hours_at_water`
@@ -420,7 +442,6 @@ variables of the same kind in a vertical column.
 | 3.1 | `water_source` and `wildlife_contact` |
 | 4.4 | `hours_at_water`, downstream of both grazing and water source |
 | 5.8 | `seropositive`, the outcome |
-| 7.2 | `abortion_reported`, a consequence of the outcome |
 
 Reading left to right therefore follows the causal order, and the y values
 spread the nodes within a column so their labels do not overlap. One practical
@@ -443,15 +464,15 @@ long to fit in a circle.
 effect.*
 
 **How to read it.** Read the drawing and check each arrow against what you know
-about the system. Four features of this DAG decide everything that follows.
+about the system. Three features of this DAG decide everything that follows.
 
 - `village`, `age_class` and `sex` sit upstream of both `grazing` and
   `seropositive`, which makes them confounders of the grazing effect.
 - `water_source`, `hours_at_water` and `wildlife_contact` sit between `grazing`
   and `seropositive`, which makes them mediators. They are
   part of how grazing causes infection, not a nuisance to be removed.
-- `abortion_reported` sits downstream of `seropositive`, because infection
-  causes abortion rather than the reverse.
+  `water_source` and `wildlife_contact` are also colliders on other paths,
+  because arrows from both `grazing` and `village` point into each of them.
 - `hours_at_water` has no arrow into `grazing`, because the amount of time an
   animal spends at water is a consequence of how it is grazed and watered.
 
@@ -462,8 +483,8 @@ Two DAGs that differ only in the direction of one arrow
 can imply exactly the same independencies, so section 5 will accept both. The
 assumption has to be defended from the design and the biology: management
 practice is recorded for a period that precedes the blood sample, antibodies
-persist for years so they cannot have caused a grazing decision taken earlier,
-and infection precedes the abortion it causes. Where reverse causation is
+persist for years so they cannot have caused a grazing decision taken earlier.
+Where reverse causation is
 plausible, say so. Farmers moving sickened animals off the wetland would
 produce the same association as wetland grazing causing infection, and this
 analysis cannot tell the two apart.
@@ -482,7 +503,7 @@ version that copes with a mix of categorical and continuous variables. The
 because `localTests()` stops if a name is missing.
 
 **How to read it.** `estimate` is the leftover association after conditioning,
-on a scale where 0 means the claim holds. None of the 29 tests reaches
+on a scale where 0 means the claim holds. None of the 22 tests reaches
 p < 0.05, where 1 or 2 would be expected from chance at the 5% level, and no
 estimate is above 0.15, so the DAG is compatible with the data.
 
@@ -509,7 +530,7 @@ leave the exposure through an arrow pointing *into* it. The
 `grepl("^grazing <-", ...)` line picks those out of the full path list by
 matching the arrow direction in the printed path.
 
-**How to read it.** 24 paths connect grazing to seropositivity and 7 of them
+**How to read it.** 23 paths connect grazing to seropositivity and 7 of them
 are backdoor paths. Every one of those 7 starts at `village`, `age_class` or
 `sex`, because those are the only three variables with an arrow into `grazing`.
 All 7 are open, and all 7 have to be blocked. You do not have to work out how
@@ -541,8 +562,76 @@ none of these questions correctly, because the mediators belong in some sets
 and not others. In causal analysis you fit one model per exposure, not one
 model per analysis.
 
+A DAG is built for the relationships it will be used to estimate. If you want
+the effect of more than one exposure, the DAG must contain every variable
+related to each of those relationships. A common mistake is to build and test a
+DAG for one relationship and then use it for others, which is only valid if the
+DAG was also drawn with those relationships in mind. The DAG in section 4 gives
+an adjustment set for each of the four exposures because it was drawn with all
+four in mind.
+
 Record these sets in your methods. They are the formal statement of what your
 estimates mean.
+
+### From the DAG to a structural equation
+
+The DAG says which variables cause which but not how. A structural equation
+gives the how for one node. It writes the node as a function of its parents,
+which are the variables with an arrow into it, plus random noise that stands for
+every other influence on it. The DAG in section 4 gives `seropositive` eight
+parents, so its equation is
+
+```
+seropositive = f(village, age_class, sex, grazing, water_source,
+                 hours_at_water, wildlife_contact, introduced_recently) + noise
+```
+
+Writing the equation means choosing the form of `f` and the distribution of the
+noise. For a 0/1 outcome the usual choice is a logit link with Bernoulli noise,
+which is the family used in every model in this tutorial. That choice is the
+`brm()` call itself, because the right-hand side of the formula is `f` and the
+`family` argument is the noise.
+
+```r
+brm(seropositive ~ grazing + village + age_class + sex + ...,   # f
+    family = bernoulli(link = "logit"))                         # the noise
+```
+
+Every other node has its own equation in terms of its own parents. For example
+`wildlife_contact` is a function of `village` and `grazing` plus noise, and
+`hours_at_water` is a function of `grazing` and `water_source` plus noise. The
+simulation in `01_simulate_data.R` writes these equations out with known
+coefficients, and the models in this tutorial estimate them from the data.
+
+Not every model in sections 8 and 9 is a full equation. The direct-effect model
+is the equation for `seropositive` without `introduced_recently`, which is left
+out because it is not needed to estimate the grazing effect. The total-effect
+model also leaves out the three mediators, so its grazing coefficient already
+contains the effect of grazing on each mediator.
+
+The noise terms are assumed to be independent between nodes. This is the same
+claim the DAG makes, because correlated noise in two nodes would mean something
+not drawn in is a common cause of both. Once each equation has a distribution
+for its noise, it defines a probability model for its node given its parents,
+`P(node | parents)`. The DAG is then a Bayesian network, and the joint
+probability of all the nodes is the product of those probability models:
+
+```
+P(all nodes) = P(village) * P(age_class) * P(sex)
+             * P(grazing | village, age_class, sex) * ...
+             * P(seropositive | its eight parents)
+```
+
+Parameterising the DAG means fitting each structural equation to the data. The
+fitted equations are then used to calculate each node from its parents in turn,
+starting with the nodes that have no parents at the top of the DAG and ending
+with `seropositive`.
+
+A Bayesian fit gives a posterior for the parameters of every equation, which
+states how uncertain each equation is. The equations are joined by the arrows,
+so simulating through them in section 12 carries that uncertainty from one node
+to the next and into the final estimate. Other methods can do this, for example
+a bootstrap, but the posterior draws are already produced by the fit.
 
 ## 8. Estimating the total effect
 
@@ -626,7 +715,7 @@ it excludes listed. For example:
 
 ## 10. Alternative model specifications
 
-This section fits the same outcome five times, changing only which other
+This section fits the same outcome four times, changing only which other
 variables go in the model alongside grazing, and compares the wetland odds
 ratio from each. The first three models were fitted in sections 3, 8 and 9.
 
@@ -635,12 +724,12 @@ ratio from each. The first three models were fitted in sections 3, 8 and 9.
 | grazing alone | 13.6 | Too high. Village and age differences are counted as grazing. |
 | grazing + village, age, sex | 7.5 | The total effect of grazing. This answers "what does grazing do to infection risk". |
 | the above + water source, hours at water, wildlife contact | 3.3 | The direct effect, which is the part of the grazing effect that does not go through those three. |
-| every variable in the dataset | 2.1 | Not a causal estimate. It contains the three mediators and abortion together, so it matches neither the total nor the direct effect. |
-| grazing + village, age, sex + abortion | 4.9 | Not a causal estimate. Abortion is a result of infection, and adding it distorts the estimate. |
+| every variable in the dataset | 3.4 | The direct effect again. The only variable added to the previous model is `introduced_recently`, which has no arrow from `grazing`, so it leaves the estimate unchanged. |
 
-Adding more variables does not make an estimate safer. Two of the five models
-give a causal estimate because the DAG chose their variables, and the other
-three do not because of what was left out or added.
+The first model leaves confounding in, and the second and third answer two
+different questions about the same exposure. The fourth repeats the third
+because a covariate with no arrow from the exposure does not change what is
+being estimated.
 
 `simulation_truth.csv` holds the coefficients that generated the data, so the
 direct effect can be checked. The true simulated direct effect is OR 2.59. The DAG direct estimate is 3.3
@@ -675,6 +764,12 @@ A coefficient answers "how much more likely is infection in wetland-grazed
 cattle". A counterfactual answers "what would seroprevalence be if those cattle
 were grazed differently". The second is the question a control programme
 actually asks.
+
+An intervention sets a node to a value you choose and ignores the arrow into
+it, because the value no longer depends on that node's parents. Everything
+downstream of it is then recalculated from its parents using the fitted
+equations, which shows what changes. This is written `do(node = value)`, as in
+the heading of scenario B.
 
 The recipe:
 
@@ -783,8 +878,12 @@ demands, which is why it is in the adjustment set.
 one variable that is not in the CSV: distance from the homestead to standing
 water. It affects both grazing system and infection, so it is a genuine
 unmeasured confounder. It pushes the direct-effect estimate in section 10 above
-the simulated truth, and nothing in the data shows that it is there. Real
-surveys always have at least one of these. Say what you think yours is.
+the simulated truth, and nothing in the data shows that it is there. The hidden
+variable also affects `water_source`, so `water_source` is a collider between
+`grazing` and the hidden variable as well as a mediator. Conditioning on it, as
+the direct-effect model does, opens a second path from `grazing` to
+`seropositive` through the hidden variable, in addition to the confounding path
+that is already open. Real surveys always have at least one of these. Say what you think yours is.
 
 The DAG you can draw and the DAG you believe are not the same thing. Marking
 the hidden variable as `[latent]` and asking `adjustmentSets()` again returns
@@ -872,8 +971,9 @@ Three things to remember:
 - The DAG is an assumption, not a result. Publish it so others can argue.
 - Total and direct effects are different quantities. Never report one as the
   other.
-- More covariates is not more rigorous. Mediators and colliders both make
-  estimates worse.
+- More covariates is not more rigorous. Conditioning on a mediator changes
+  which effect is being estimated, and a mediator that is also a collider can
+  open a new path.
 
 ---
 
@@ -921,7 +1021,7 @@ of 0.97 means that under this model and these data there is a 97% probability
 the effect raises the odds.
 
 **`wetland_or(fit)`** pulls the wetland grazing coefficient out of any fit and
-exponentiates it, so the five specifications in section 10 can be lined up in
+exponentiates it, so the four specifications in section 10 can be lined up in
 one table.
 
 **`pop_mean(fit, newdata, rows = NULL)`** returns a posterior for the

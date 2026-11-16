@@ -85,9 +85,7 @@ that contains them needs multilevel methods beyond a beginner tutorial.
 | `introduced_recently` | bought into the herd in the last 12 months | Owners who buy animals to renew the herd had higher seroconversion in Madagascar |
 
 Plus `hours_at_water`, a continuous duration of surface-water contact that acts
-as the mediator, and `abortion_reported`, which is caused by infection and is in
-the data specifically so the tutorial can show what happens when you adjust for
-a collider.
+as the mediator.
 
 The simulation also contains two variables that are **not** written to the CSV.
 Distance from the homestead to standing water causes both grazing system and

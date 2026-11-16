@@ -149,7 +149,6 @@ rvf_dag <- dagitty('dag {
   wildlife_contact       [pos="3.1,1.7"]
   introduced_recently    [pos="1.6,4.3"]
   seropositive           [outcome, pos="5.8,2.3"]
-  abortion_reported [pos="7.2,2.3"]
 
   village -> grazing
   village -> water_source
@@ -167,7 +166,6 @@ rvf_dag <- dagitty('dag {
   grazing -> hours_at_water
   grazing -> wildlife_contact
   grazing -> seropositive
-  grazing -> abortion_reported
 
   water_source -> hours_at_water
   water_source -> seropositive
@@ -175,8 +173,6 @@ rvf_dag <- dagitty('dag {
   hours_at_water      -> seropositive
   wildlife_contact    -> seropositive
   introduced_recently -> seropositive
-
-  seropositive -> abortion_reported
 }')
 
 # tidy_dagitty() turns the DAG into a data frame of nodes and edges, and
@@ -315,15 +311,12 @@ compare
 # ---- 10. Alternative model specifications -----------------------------------
 # TUTORIAL.md, section 10.
 
-# The same outcome fitted with five sets of covariates. Two of them estimate a
-# causal effect of grazing and three do not.
+# The same outcome fitted with four sets of covariates.
 
 b_all_variables <- fit_bin(seropositive ~ grazing + village + age_class + sex +
                              water_source + hours_at_water + wildlife_contact +
-                             introduced_recently + abortion_reported,
+                             introduced_recently,
                            "b_all_variables")
-b_collider <- fit_bin(seropositive ~ grazing + village + age_class + sex +
-                        abortion_reported, "b_collider")
 
 truth <- read.csv("simulation_truth.csv")
 
@@ -333,14 +326,13 @@ wetland_or <- function(fit) {
 
 specifications <- data.frame(
   approach = c("no adjustment", "DAG total effect", "DAG direct effect",
-               "everything in the model", "adjusted for a collider"),
+               "everything in the model"),
   wetland_OR = c(wetland_or(b_crude), wetland_or(b_total), wetland_or(b_direct),
-                 wetland_or(b_all_variables), wetland_or(b_collider)),
+                 wetland_or(b_all_variables)),
   answers = c("nothing: confounded by village and age",
               "the total causal effect",
               "the effect not running through the mediators",
-              "nothing: mediators and a collider both included",
-              "nothing: collider bias added to a correct set")
+              "the direct effect, plus one covariate the DAG leaves out")
 )
 specifications
 
