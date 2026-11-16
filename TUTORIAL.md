@@ -307,7 +307,7 @@ females and males for different purposes.
 The first version of a DAG can be large. Draw every variable you can think of
 that might lie on the causal path or influence the relationship, whether or not
 it was measured. The DAG is then trimmed to what the question needs, in two
-cases.
+cases:
 
 1. A variable with an arrow into the outcome and no connection to the exposure
    can be removed, because the DAG describes the causal relationship you are
@@ -346,7 +346,7 @@ cannot be tested against the data later.
 The online version of dagitty at <https://www.dagitty.net> lets you move nodes
 and add or change arrows with the mouse, so you can see the structure as you
 build it. The code it produces can be copied and pasted into `dagitty('...')`
-in R.
+in R. This is a great place to start! 
 
 ### Deciding the role of a node
 
@@ -542,9 +542,8 @@ a forward arrow carry the effect.
 
 This is the step that makes the analysis causal, because `adjustmentSets()`
 reads the DAG and returns the covariates that block every bias path while
-leaving the causal paths intact. You no longer choose covariates by p-value, by
-stepwise selection or by what was in the last paper, all of which can introduce
-bias of their own.
+leaving the causal paths intact. You no longer choose covariates by p-value or 
+stepwise selection; all of which can introduce bias of their own.
 
 `effect = "total"` asks for everything the exposure does to the outcome by any
 route. `effect = "direct"` asks what is left when the mediators are held fixed.
