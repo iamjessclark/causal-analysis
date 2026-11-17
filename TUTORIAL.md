@@ -1,3 +1,11 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+Written by: Jessica Clark and Rivka Lim
+---
+
 # Causal analysis in R: the written tutorial
 
 This file holds the explanation that goes with `02_causal_analysis_tutorial.R`.
@@ -306,8 +314,22 @@ females and males for different purposes.
 
 The first version of a DAG can be large. Draw every variable you can think of
 that might lie on the causal path or influence the relationship, whether or not
-it was measured. The DAG is then trimmed to what the question needs, in two
-cases:
+it was measured. A variable you did not measure belongs in this first version
+for three reasons and is marked `[latent]` (see the table below).
+
+1. It states the assumption. A DAG without the variable claims it does not
+   exist, so every adjustment set is correct only under that claim. With the
+   variable drawn, `adjustmentSets()` returns only sets that block every
+   backdoor path without using it, and returns none if no such set exists, which
+   means the effect cannot be identified from your data.
+2. It shows what can substitute for it. A measured variable on the same path,
+   such as a proxy for the unmeasured one, may block the path, and the DAG shows
+   which measured variable can do this.
+3. It decides what to do when nothing can substitute for it. The options are a
+   sensitivity analysis such as the E-value in section 13, or collecting the
+   variable in the next study.
+
+The DAG is then trimmed to what the question needs, in two cases:
 
 1. A variable with an arrow into the outcome and no connection to the exposure
    can be removed, because the DAG describes the causal relationship you are
